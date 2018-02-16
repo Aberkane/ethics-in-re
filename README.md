@@ -1,7 +1,7 @@
 # parsePDF
 
 ## Author:
-- **Abdel** Aberkane (5783909)
+- **Abdel-Jaouad** Aberkane (5783909)
 
 ## Documentation
 The parsePDF script enables users to parse pdf's and calculate the most occuring noun chunks by making use of the spacy and textract library. 

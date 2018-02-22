@@ -1,8 +1,7 @@
-# Based on: https://github.com/adityashrm21/Pdf-Word-Count
-# Author: Aditya Sharma
-# Adapted by Abdel Aberkane
+# Structure based on: https://github.com/adityashrm21/Pdf-Word-Count
+# Author: Abdel Aberkane
 # 
-# Script that parses PDFs using textract and processes it further using Spacy. 
+# Script that parses PDFs using Textract and processes it further using Spacy. 
 # The script can be executed by adding as argument in which the directory it should run.
 # If no argument is given, the script will run in the script directory.
 # The script will output a txt file with the frequency of noun chunks of the parsed PDFs.
@@ -10,12 +9,13 @@
 
 import textract
 import os, sys, glob
-# import spacy
+import spacy
 # import PyPDF2
 import string
 import en_core_web_sm
 # import os
 import errno
+import nltk
 
 import collections
 from sys import exit
@@ -23,7 +23,8 @@ from sys import exit
 # from os.path import isfile, join
 # from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
-nlp = en_core_web_sm.load()
+#stop_words = nltk.download('stopwords')
+#nlp = en_core_web_sm.load()
 
 def getFiles():
     # if no argument is given, script will run in script directory
@@ -57,34 +58,7 @@ def getFiles():
             exit(1)
         return pdf_files
 
-# def getFiles():
-#         pdf_files = list()
-#         
-#         for filename in glob.glob("*.pdf"):
-#             pdf_files.append(filename)
-#         return pdf_files
-#         
-# 
-# def getPageCount(pdf_file):
-# 	pdfFileObj = open(pdf_file, 'rb')
-# 	pdfReader = PyPDF2.PdfFileReader(pdfFileObj)
-# 	pages = pdfReader.numPages
-# 	#text = textract.process(pdfFileObj, method='pdfminer')
-# 	#print(text)
-# 	return pages
-# 
-# 
-# def extractData(pdf_file, page):
-# 	pdfFileObj = open(pdf_file, 'rb')
-# 	pdfReader = PyPDF2.PdfFileReader(pdfFileObj)
-# 	pageObj = pdfReader.getPage(0)
-# 	data = pageObj.extractText()
-# 	return data
-# 
-# def getWordCount(data):
-# 	data=data.split()
-# 	return len(data)
-# 	
+
 def countItems(text, n):
         #List that includes both words and their frequency
         counter = collections.Counter(text)
@@ -94,20 +68,25 @@ def countItems(text, n):
 	
 # extract text from pdf file	
 def getText(doc):
-	text = textract.process(doc)
+	text = textract.process(doc, method='pdfminer')
+	#text = textract.process(doc)
+	#exit(1)
 	return text
 
 def prepareText(text):
         text = text.split(" ")
         return text
 
-def cleanText(text):
+def cleanChunks(text):
         stop_words = stopwords.words('english')
-        text = [word.lower() for word in text if not word in stop_words and  not word in string.punctuation]
+
+        text = [chunk for chunk in text if not chunk in stop_words]
         return text
 
 def getNounChunks(text):
-        return [token.text.lower() for token in text.noun_chunks]
+        noun_chunks = [token.text.lower() for token in text.noun_chunks]
+	noun_chunks = cleanChunks(noun_chunks)
+	return noun_chunks
 
 def getWords(text):
         return [token.text for token in text if token.is_stop != True and token.is_punct != True]
@@ -135,21 +114,27 @@ def writeFile(file, noun_chunks):
 
 def main():
         files = getFiles()
+	nlp = spacy.load('en')
+	counter = 1
 
+	print "We will start parsing ..."
         for file in files:
+            print "# file " + str(counter) + ": " + file
             # extract text from pdf
+	    print "Parsing ...", 
             text = getText(file)
 
-            # some spacy magic
             text = unicode((text).decode('utf8'))
             text = nlp(text)
 
+	    print " successful.\nCalculating noun chunks ...", 
             noun_chunks = getNounChunks(text)
             noun_chunks = countItems(noun_chunks, 50)
 
+	    print " successful.\nWriting output file ...", 
             writeFile(file, noun_chunks)
-   
-          
+	    counter = counter + 1 
+            print "successful. \n"
 
 if __name__ == '__main__':
 	main()

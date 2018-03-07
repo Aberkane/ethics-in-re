@@ -1,7 +1,6 @@
-# Based on: https://github.com/adityashrm21/Pdf-Word-Count
-# Author: Aditya Sharma
-# Adapted by Abdel Aberkane
-# 
+# Author: Abdel Aberkane
+# Loosely based on: https://github.com/adityashrm21/Pdf-Word-Count, by Aditya Sharma
+#
 # Script that parses PDFs using textract and processes it further using Spacy. 
 # The script can be executed by adding as argument in which the directory it should run.
 # If no argument is given, the script will run in the script directory.

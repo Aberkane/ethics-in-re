@@ -1,6 +1,17 @@
+'''
+Author: Abdel-Jaouad Aberkane (5783909), Utrecht University
+Part of master's thesis "Exploring Ethics in Requirements Engineering", 
+section 7: Automatically Identifying Ethical Issues
+
+This script explores features extraction in requirements engineering aiming to raise ethical awareness
+about the ethical implications of software. This script goes hand in hand with the user_stories.csv in the
+/data folder.
+
+The script is based on the following sources:
 # https://towardsdatascience.com/multi-label-text-classification-with-scikit-learn-30714b7819c5
 # https://www.analyticsvidhya.com/blog/2018/02/the-different-methods-deal-text-data-predictive-python/
 # https://stackoverflow.com/questions/36572221/how-to-find-ngram-frequency-of-a-column-in-a-pandas-dataframe
+'''
 
 import re
 import matplotlib
@@ -33,7 +44,7 @@ stop_words = set(stopwords.words('english'))
 ls = LancasterStemmer()
 ps = PorterStemmer()
 
-
+# substitute abbreviated words
 def clean_text(text):
     text = text.lower()
     text = re.sub(r"what's", "what is ", text)
@@ -51,7 +62,7 @@ def clean_text(text):
     text = text.strip(' ')
     return text
 
-
+# Quantitative analysis of the data set
 def reqs_per_label(df):
     # EXPLORE DATASET
     df_toxic = df.drop(['user_story'], axis=1)
@@ -73,24 +84,26 @@ def reqs_per_label(df):
     plt.show()
 
 
+# Quantitative analysis of the data set: #labelled requirements
 def req_distribution_label(df):
     # number of comments that are labeled
-    print('Percentage of comments that are not labelled:')
+    print('Percentage of requirements that are not labelled:')
     print(len(df[(df['teaching_ethics']==0) & (df['responsibility']==0) & (df['privacy']==0) & (df['coe']== 0) & (df['ip']==0) & (df['edm']==0) & (df['security']==0) & (df['informed_consent']==0) & (df['autonomy']==0) & (df['quality']==0) & (df['piracy']==0) & (df['virtual_harm']==0)]) / float(len(df)))
 
 
+# Quantitative analysis of the data set: number of words in reqs
 def req_distribution_words(df):
-    # The distribution of the number of words in comment texts
     lens = df.user_story.str.len()
     lens.hist(bins = np.arange(0,5000,50))
 
 
+# Quantitative analysis of the data set: identifying empty columns
 def empty_reqs(df):
-    # There is no missing comment in comment text column
-    print('Number of missing comments in comment text:')
+    print('Number of missing requirement:')
     df['user_story'].isnull().sum()
 
 
+# Multinomial bayes classifier
 def MNB_cl(X_train, X_test, train, test, categories):
     # Define a pipeline combining a text feature extractor with multi lable classifier
     NB_pipeline = Pipeline([
@@ -115,6 +128,7 @@ def MNB_cl(X_train, X_test, train, test, categories):
         print("\n")
 
 
+# Supported vector classifier
 def SVC_cl(X_train, X_test, train, test):
     SVC_pipeline = Pipeline([
                 ('tfidf', TfidfVectorizer(stop_words=stop_words)),
@@ -129,6 +143,7 @@ def SVC_cl(X_train, X_test, train, test):
         print('Test accuracy is {}'.format(accuracy_score(test[category], prediction)))
 
 
+# Linear regression
 def LR_cl(X_train, X_test, train, test):
     LogReg_pipeline = Pipeline([
                 ('tfidf', TfidfVectorizer(stop_words=stop_words)),
@@ -143,7 +158,7 @@ def LR_cl(X_train, X_test, train, test):
         print('Accuracy is {}'.format(accuracy_score(test[category], prediction)))
 
 
-
+# Pipeline of the MNB
 def init_pipeline(df):
     # Split the data to train and test sets
     #categories = ['teaching_ethics', 'responsibility', 'privacy', 'coe', 'ip', 'edm', 'security', 'informed_consent', 'autonomy', 'quality', 'piracy', 'virtual_harm']
@@ -158,15 +173,17 @@ def init_pipeline(df):
     MNB_cl(X_train, X_test, train, test, categories)
 
 
+# Convert all values of dataframe to integers
 def df_float2int(df):
     df[['teaching_ethics', 'responsibility', 'privacy', 'coe', 'ip', 'edm', 'security', 'informed_consent', 'autonomy', 'quality', 'piracy', 'virtual_harm']] = df[['teaching_ethics', 'responsibility', 'privacy', 'coe', 'ip', 'edm', 'security', 'informed_consent', 'autonomy', 'quality', 'piracy', 'virtual_harm']].astype('int')
     return df
 
-
+# Basic processing: average word length
 def average_word_length_s(sentence):
     words = sentence.split()
     return (sum(len(word) for word in words)/len(words))  
 
+# Basic processing: number of words
 def number_of_words(df):
     print("# WORD COUNT")
     word_count_res_1 = df.loc[df['responsibility'] == 1]['user_story'].apply(lambda x: len(str(x).split(" ")))
@@ -183,7 +200,8 @@ def number_of_words(df):
     #df[['user_story','word_count']].head()
     print "\n"
 
-# including space
+
+# Basic processing: number of characters in labelled and unlabelled reqs
 def number_of_chars(df):
     print("# CHAR COUNT")
     #df['char_count'] = df['user_story'].str.len() ## this also includes spaces
@@ -203,6 +221,7 @@ def number_of_chars(df):
     print "\n"
 
 
+# Basic processing: average word length in labelled and unlabelled reqs
 def average_word_length(df):
     print("# AVERAGE WORD LENGTH")
     word_length_res_1 = df.loc[df['responsibility'] == 1]['user_story'].apply(lambda x: average_word_length_s(x))
@@ -219,7 +238,7 @@ def average_word_length(df):
     print "\n"
 
 
-
+# Basic processing: number of stopwords in labelled and unlabelled reqs
 def number_of_stopwords(df):
     print("# STOPWORDS COUNT")
     stopwords_count_res_1 = df.loc[df['responsibility'] == 1]['user_story'].apply(lambda x: len([x for x in x.split() if x in stop_words]))
@@ -236,13 +255,15 @@ def number_of_stopwords(df):
     print "\n"
 
 
-
+# Preprocessing for bigram computation
 def bigram_column(us):
     word_vectorizer = CountVectorizer(ngram_range=(2,2), analyzer='word')
     sparse_matrix = word_vectorizer.fit_transform(us)
     frequencies = sum(sparse_matrix).toarray()[0]
     return pd.DataFrame(frequencies, index=word_vectorizer.get_feature_names(), columns=['frequency'])
 
+
+# Basic processing: bigrams of labelled and unlabelled reqs
 def get_bigrams(df):
     print("# BIGRAM COUNT")
     us_res_1 = df.loc[df['responsibility'] == 1]['user_story']
@@ -276,7 +297,7 @@ def get_bigrams(df):
     print "\n"
 
 
-
+# Basic processing: tfidf of labelled and unlabelled reqs
 def get_tfidf_per_label(df, categories):
     print("# TFIDF PER LABEL")
     tfidf = TfidfVectorizer()
@@ -385,19 +406,12 @@ if __name__ == "__main__":
     get_tfidf_per_label(df, categories)
 
     tfidf = TfidfVectorizer()
-    feature_matrix = tfidf.fit_transform(df['user_story'])
+    #feature_matrix = tfidf.fit_transform(df['user_story'])
     #feature_matrix_full = tfidf.fit_transform(df)
 
     # all words in the tf-idf vocabulary 
-    features = tfidf.get_feature_names()
+    #features = tfidf.get_feature_names()
 
-    weights = np.asarray(feature_matrix.mean(axis=0)).ravel().tolist()
-    weights_df = pd.DataFrame({'term': tfidf.get_feature_names(), 'weight': weights})
-    weights_df.sort_values(by='weight', ascending=False).head(20)
-
-
-
-
-           
-
-
+    #weights = np.asarray(feature_matrix.mean(axis=0)).ravel().tolist()
+    #weights_df = pd.DataFrame({'term': tfidf.get_feature_names(), 'weight': weights})
+    #weights_df.sort_values(by='weight', ascending=False).head(20)

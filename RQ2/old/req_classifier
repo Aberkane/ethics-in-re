@@ -1,0 +1,223 @@
+# https://towardsdatascience.com/multi-label-text-classification-with-scikit-learn-30714b7819c5
+
+import re
+import matplotlib
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.multiclass import OneVsRestClassifier
+from nltk.corpus import stopwords
+stop_words = set(stopwords.words('english'))
+from sklearn.svm import LinearSVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+import seaborn as sns
+from nltk.stem import PorterStemmer
+from nltk.tokenize import sent_tokenize, word_tokenize
+from sklearn.metrics import confusion_matrix, recall_score, accuracy_score, precision_score
+from nltk.stem.lancaster import LancasterStemmer
+
+stemmer = LancasterStemmer()
+ps = PorterStemmer()
+
+# data preprocessing
+def clean_text(text):
+    text = text.lower()
+    text = re.sub(r"what's", "what is ", text)
+    text = re.sub(r"\'s", " ", text)
+    text = re.sub(r"\'ve", " have ", text)
+    text = re.sub(r"can't", "can not ", text)
+    text = re.sub(r"n't", " not ", text)
+    text = re.sub(r"i'm", "i am ", text)
+    text = re.sub(r"\'re", " are ", text)
+    text = re.sub(r"\'d", " would ", text)
+    text = re.sub(r"\'ll", " will ", text)
+    text = re.sub(r"\'scuse", " excuse ", text)
+    text = re.sub('\W', ' ', text)
+    text = re.sub('[!@#$()[],]', '', text)
+    text = text.strip(' ')
+    return text
+
+def stem_text(text):
+    print "IK KOM HIER"
+    print text
+    stemmed_req = ""
+    for word in word_tokenize(text):
+        stemmed_word = stemmer.stem(word.lower())
+        print stemmed_word
+        stemmed_req = stemmed_req + stemmed_word + " "
+    print stemmed_req
+    return stemmed_req
+
+
+def reqs_per_label(df):
+    # EXPLORE DATASET
+    df_toxic = df.drop(['user_story'], axis=1)
+    counts = []
+    categories = list(df_toxic.columns.values)
+
+    for i in categories:
+        counts.append((i, df_toxic[i].sum()))
+
+    df_stats = pd.DataFrame(counts, columns=['category', 'number_of_requirements'])
+    # number of comments in each category
+    print df_stats
+
+    # number of comments in each category
+    df_stats.plot(x='category', y='number_of_requirements', kind='bar', legend=False, grid=True, figsize=(8, 5))
+    plt.title("Number of requirements per category")
+    plt.ylabel('# of Occurrences', fontsize=12)
+    plt.xlabel('category', fontsize=12)
+    plt.show()
+
+
+def req_distribution_label(df):
+    # number of comments that are labeled
+    print('Percentage of comments that are not labelled:')
+    print(len(df[(df['teaching_ethics']==0) & (df['responsibility']==0) & (df['privacy']==0) & (df['coe']== 0) & (df['ip']==0) & (df['edm']==0) & (df['security']==0) & (df['informed_consent']==0) & (df['autonomy']==0) & (df['quality']==0) & (df['piracy']==0) & (df['virtual_harm']==0)]) / float(len(df)))
+
+
+def req_distribution_words(df):
+    # The distribution of the number of words in comment texts
+    lens = df.user_story.str.len()
+    lens.hist(bins = np.arange(0,5000,50))
+
+
+def empty_reqs(df):
+    # There is no missing comment in comment text column
+    print('Number of missing comments in comment text:')
+    df['user_story'].isnull().sum()
+
+
+def MNB_cl(X_train, X_test, train, test, categories):
+    # Define a pipeline combining a text feature extractor with multi lable classifier
+    NB_pipeline = Pipeline([
+                    ('tfidf', TfidfVectorizer(stop_words=stop_words)),
+                    ('clf', OneVsRestClassifier(MultinomialNB(
+                        fit_prior=True, class_prior=None))),
+                ])
+    for category in categories:
+        if(category == 'user_story'):
+            continue
+        print('... Processing {}'.format(category))
+        # train the model using X_dtm & y
+        NB_pipeline.fit(X_train, train[category])
+        # compute the testing accuracy
+        prediction = NB_pipeline.predict(X_test)
+
+        cm = confusion_matrix(test[category], prediction)
+        print(cm)
+        print('Test accuracy is {}'.format(accuracy_score(test[category], prediction)))
+        print('Recall is {}'.format(recall_score(test[category], prediction, average='macro')))
+        print('Precision is {}'.format(precision_score(test[category], prediction, average='micro')))
+        print("\n")
+
+
+def SVC_cl(X_train, X_test, train, test):
+    SVC_pipeline = Pipeline([
+                ('tfidf', TfidfVectorizer(stop_words=stop_words)),
+                ('clf', OneVsRestClassifier(LinearSVC(), n_jobs=1)),
+            ])
+    for category in categories:
+        print('... Processing {}'.format(category))
+        # train the model using X_dtm & y
+        SVC_pipeline.fit(X_train, train[category])
+        # compute the testing accuracy
+        prediction = SVC_pipeline.predict(X_test)
+        print('Test accuracy is {}'.format(accuracy_score(test[category], prediction)))
+
+
+def LR_cl(X_train, X_test, train, test):
+    LogReg_pipeline = Pipeline([
+                ('tfidf', TfidfVectorizer(stop_words=stop_words)),
+                ('clf', OneVsRestClassifier(LogisticRegression(solver='sag'), n_jobs=1)),
+            ])
+    for category in categories:
+        print('... Processing {}'.format(category))
+        # train the model using X_dtm & y
+        LogReg_pipeline.fit(X_train, train[category])
+        # compute the testing accuracy
+        prediction = LogReg_pipeline.predict(X_test)
+        print('Accuracy is {}'.format(accuracy_score(test[category], prediction)))
+
+
+
+def init_pipeline(df):
+    # Split the data to train and test sets
+    #categories = ['teaching_ethics', 'responsibility', 'privacy', 'coe', 'ip', 'edm', 'security', 'informed_consent', 'autonomy', 'quality', 'piracy', 'virtual_harm']
+    
+    categories = list(df.columns.values)
+    train, test = train_test_split(df, random_state=42, test_size=0.33, shuffle=True)
+    X_train = train.user_story
+    X_test = test.user_story
+    #print(X_train.shape)
+    #print(X_test.shape)
+
+    MNB_cl(X_train, X_test, train, test, categories)
+
+
+def df_float2int(df):
+    df[['teaching_ethics', 'responsibility', 'privacy', 'coe', 'ip', 'edm', 'security', 'informed_consent', 'autonomy', 'quality', 'piracy', 'virtual_harm']] = df[['teaching_ethics', 'responsibility', 'privacy', 'coe', 'ip', 'edm', 'security', 'informed_consent', 'autonomy', 'quality', 'piracy', 'virtual_harm']].astype('int')
+    return df
+
+
+
+if __name__ == "__main__":
+    # READ DATASET
+#    df = pd.read_csv("data/user_stories.csv", sep=';', encoding = "utf8")
+    df = pd.read_csv("data/user_stories_s.csv", sep=';', encoding = "utf8")
+
+    df = df.fillna(0)
+
+    # clean text
+    df['user_story'] = df['user_story'].map(lambda com : clean_text(com))
+
+    # text stemming
+    #df['user_story'] = df['user_story'].map(lambda com : stem_text(com))    
+
+    df = df_float2int(df)
+
+    df = df.drop(['teaching_ethics', 'coe', 'ip', 'edm', 'autonomy', 'piracy', 'informed_consent', 'quality', 'virtual_harm'], axis=1)
+
+    #init_pipeline(df)
+
+
+   # Define a pipeline combining a text feature extractor with multi lable classifier
+    categories = list(df.columns.values)
+    train, test = train_test_split(df, random_state=42, test_size=0.33, shuffle=True)
+    X_train = train.user_story
+    X_test = test.user_story
+
+    NB_pipeline = Pipeline([
+                    ('tfidf', TfidfVectorizer(stop_words=stop_words)),
+                    ('clf', OneVsRestClassifier(MultinomialNB(
+                        fit_prior=True, class_prior=None))),
+                ])
+    for category in categories:
+        if(category == 'user_story'):
+            continue
+        print('... Processing {}'.format(category))
+        # train the model using X_dtm & y
+        NB_pipeline.fit(X_train, train[category])
+        # compute the testing accuracy
+        prediction = NB_pipeline.predict(X_test)
+
+        cm = confusion_matrix(test[category], prediction)
+        print(cm)
+        print('Test accuracy is {}'.format(accuracy_score(test[category], prediction)))
+        print('Recall is {}'.format(recall_score(test[category], prediction, average='macro')))
+        print('Precision is {}'.format(precision_score(test[category], prediction, average='micro')))
+        print("\n")
+
+    
+
+
+
+
+
+
+
+
